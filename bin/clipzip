@@ -1,0 +1,109 @@
+#!/bin/sh -e
+##:
+#h: Usage: clipzip -V [-n NAME][-p PASSWORD]
+#h:
+#h: Create an encrypted zip in "~/.secret/clipzip" with the contents
+#h: of the clipboard. A text editor will be openned before to check
+#h: the contents. If neither -n, -p are specified they are asked for
+#h: interactively.
+##:
+clipzip() {
+    
+    local OPTIND optopt name= pass=
+    
+    ## Parse command line arguments.
+    while getopts "Vn:p:" optopt; do
+        case $optopt in
+            V)  clipzip_show_variables; return 0;;
+            n)  name="${OPTARG}";;
+            p)  pass="${OPTARG}";;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    clipzip_check_programs
+    
+    ## Ask name.
+    if test ! -n "${name}"; then
+        echo -n "Name: "
+        read -r name
+    fi
+    if test ! -n "${name}"; then
+        echo >&2 "error: Operation aborted."
+        return 1
+    fi
+    
+    ## Ask password.
+    if test ! -n "${pass}"; then
+        echo -n "Password: "
+        read -r pass
+    fi
+    if test ! -n "${pass}"; then
+        echo >&2 "error: Operation aborted."
+        return 1
+    fi
+    
+    ## Save clipboard to file.    
+    mkdir -p "${CLIPZIP_DIR}"
+    case "${CLIPZIP_OP1}" in
+        nircmd) nircmd clipboard writefile "${CLIPZIP_DIR}/${name}.txt";;
+        xclip)  xclip -selection clipboard -o > "${CLIPZIP_DIR}/${name}.txt";;
+    esac
+    
+    ## Open with text editor.
+    ${EDITOR:-vi} "${CLIPZIP_DIR}/${name}.txt"
+    
+    ## Create zip.
+    rm -f "${CLIPZIP_DIR}/${name}.zip"
+    case "${CLIPZIP_OP0}" in
+        7z) 7z a "${CLIPZIP_DIR}/${name}.zip" -p"${pass}" "${CLIPZIP_DIR}/${name}.txt";;
+    esac
+    rm -f "${CLIPZIP_DIR}/${name}.txt"
+    
+    ## Open directory.
+    case "${CLIPZIP_OP2}" in
+        explorer) explorer "$(echo "${CLIPZIP_DIR}" | tr '/' '\\')";;
+        xdg-open) xdg-open "${CLIPZIP_DIR}";;
+    esac
+    
+    ##
+    return 0
+}
+clipzip_show_variables() {
+    cat <<-EOF
+	CLIPZIP_DIR : ${CLIPZIP_DIR}
+	CLIPZIP_OP0 : ${CLIPZIP_OP0}
+	CLIPZIP_OP1 : ${CLIPZIP_OP1}
+	CLIPZIP_OP2 : ${CLIPZIP_OP2}
+	EOF
+}
+clipzip_calc_variables() {
+    CLIPZIP_DIR="${CLIPZIP_DIR:-${HOME}/.secret/clipzip}"
+    CLIPZIP_OP0="7z"
+    case "$(uname -s)" in
+        Windows_NT|CYG*|MIN*) CLIPZIP_OP1='nircmd' CLIPZIP_OP2='explorer';;
+        *)                    CLIPZIP_OP1='xclip'  CLIPZIP_OP2='xdg-open';;
+    esac
+}
+clipzip_check_programs() {
+    if ! which "${CLIPZIP_OP0}" >/dev/null 2>&1; then
+        echo >&2 "error: ${CLIPZIP_OP0}: Program not found."
+        return 1
+    fi
+    if ! which "${CLIPZIP_OP1}" >/dev/null 2>&1; then
+        echo >&2 "error: ${CLIPZIP_OP1}: Program not found."
+        return 1
+    fi
+    if ! which "${CLIPZIP_OP2}" >/dev/null 2>&1; then
+        echo >&2 "error: ${CLIPZIP_OP2}: Program not found."
+        return 1
+    fi
+}
+## -----------------------------------------------------------
+clipzip_calc_variables
+if test @"${SCRNAME:-$(basename "$0")}" = @"clipzip"; then
+    case "${1}" in
+        -h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)         clipzip "$@"; exit 0;;
+    esac
+fi
