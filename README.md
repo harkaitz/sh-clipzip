@@ -7,8 +7,8 @@ in order to send files throw a chat client.
 
 ## Dependencies
 
-Ms Windows: 7z, nircmd, Busybox for Windows.
-GNU/Linux: 7z, xclip, POSIX shell.
+- Ms Windows: 7z, nircmd, Busybox for Windows.
+- GNU/Linux: 7z, xclip, POSIX shell.
 
 ## Help
 
