@@ -1,0 +1,67 @@
+#!/bin/sh -e
+##:
+#h: Usage: dirzip {-V | [-n NAME][-p PASSWORD] DIRECTORY }
+#h:
+#h: Create a (optionally encrypted) zip of a directory, then
+#h: the directory containing the zip is opened with a browser
+#h: for easy drag.
+##:
+. clipzip
+dirzip() {
+    local OPTIND optopt name= name_def= pass= pwd="$(pwd)"
+    
+    ## Parse command line arguments.
+    while getopts "Vn:p:" optopt; do
+        case $optopt in
+            V)  clipzip_show_variables; return 0;;
+            n)  name="${OPTARG}";;
+            p)  pass="${OPTARG}";;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    clipzip_check_programs
+    
+    ## Require a directory as argument.
+    if test ! -n "$1"; then
+        echo >&2 "error: Please specify a directory."
+        return 1
+    elif test ! -d "$1"; then
+        echo >&2 "error: $1: Not a directory."
+        return 1
+    fi
+    
+    ## Ask name.
+    name_def="$(basename "$1")"
+    if test ! -n "${name}"; then
+        echo -n "Name (default: ${name_def}): "
+        read -r name
+    fi
+    name="${name:-${name_def}}"
+    
+    ## Ask password.
+    if test ! -n "${pass}"; then
+        echo -n "Password (default none): "
+        read -r pass
+    fi
+    
+    ## Move to directory and create zip.
+    mkdir -p "${CLIPZIP_DIR}"
+    rm -f "${CLIPZIP_DIR}/${name}.zip"
+    cd "$1"
+    7z a "${CLIPZIP_DIR}/${name}.zip" ${pass:+ -p"${pass}" } .
+    cd "${pwd}"
+    
+    ## Open directory.
+    clipzip_open_directory
+    
+    ##
+    return 0
+}
+## -----------------------------------------------------------
+if test @"${SCRNAME:-$(basename "$0")}" = @"dirzip"; then
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)            dirzip "$@"; exit 0;;
+    esac
+fi

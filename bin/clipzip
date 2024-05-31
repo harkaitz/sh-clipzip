@@ -1,22 +1,24 @@
 #!/bin/sh -e
 ##:
-#h: Usage: clipzip -V [-n NAME][-p PASSWORD]
+#h: Usage: clipzip {-V | -o |  [-n NAME][-p PASSWORD] }
 #h:
 #h: Create an encrypted zip in "~/.secret/clipzip" with the contents
 #h: of the clipboard. A text editor will be openned before to check
 #h: the contents. If neither -n, -p are specified they are asked for
-#h: interactively.
+#h: interactively. Finaly the directory containing the zip is openned
+#h: with a browser for easy drag.
 ##:
 clipzip() {
     
     local OPTIND optopt name= pass=
     
     ## Parse command line arguments.
-    while getopts "Vn:p:" optopt; do
+    while getopts "Von:p:" optopt; do
         case $optopt in
             V)  clipzip_show_variables; return 0;;
             n)  name="${OPTARG}";;
             p)  pass="${OPTARG}";;
+            o)  clipzip_open_directory; return 0;;
             \?) return 1;;
         esac
     done
@@ -61,10 +63,7 @@ clipzip() {
     rm -f "${CLIPZIP_DIR}/${name}.txt"
     
     ## Open directory.
-    case "${CLIPZIP_OP2}" in
-        explorer) explorer "$(echo "${CLIPZIP_DIR}" | tr '/' '\\')";;
-        xdg-open) xdg-open "${CLIPZIP_DIR}";;
-    esac
+    clipzip_open_directory
     
     ##
     return 0
@@ -98,6 +97,13 @@ clipzip_check_programs() {
         echo >&2 "error: ${CLIPZIP_OP2}: Program not found."
         return 1
     fi
+}
+## -----------------------------------------------------------
+clipzip_open_directory() {
+    case "${CLIPZIP_OP2}" in
+        explorer) explorer "$(echo "${CLIPZIP_DIR}" | tr '/' '\\')";;
+        xdg-open) xdg-open "${CLIPZIP_DIR}";;
+    esac
 }
 ## -----------------------------------------------------------
 clipzip_calc_variables

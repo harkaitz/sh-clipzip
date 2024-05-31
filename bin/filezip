@@ -1,0 +1,67 @@
+#!/bin/sh -e
+##:
+#h: Usage: filezip {-V | [-n NAME][-p PASSWORD] FILE }
+#h:
+#h: Create a (optionally encrypted) zip of a file. Then
+#h: the directory containing the zip is opened with a browser
+#h: for easy drag.
+##:
+. clipzip
+filezip() {
+    local OPTIND optopt f name= name_def= pass=
+    
+    ## Parse command line arguments.
+    while getopts "Vn:p:" optopt; do
+        case $optopt in
+            V)  clipzip_show_variables; return 0;;
+            n)  name="${OPTARG}";;
+            p)  pass="${OPTARG}";;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    clipzip_check_programs
+    
+    ## Require at least one file.
+    if test ! -n "$1"; then
+        echo >&2 "error: Please specify files to zip."
+        return 1
+    fi
+    
+    ## Ask name.
+    name_def="$(basename "$1" | sed 's|\..*||')"
+    if test ! -n "${name}"; then
+        echo -n "Name (default: ${name_def}): "
+        read -r name
+    fi
+    name="${name:-${name_def}}"
+    
+    ## Ask password.
+    if test ! -n "${pass}"; then
+        echo -n "Password (default none): "
+        read -r pass
+    fi
+    
+    ## Create zip.
+    mkdir -p "${CLIPZIP_DIR}"
+    rm -f "${CLIPZIP_DIR}/${name}.zip"
+    for f in "$@"; do
+        if test ! -e "${f}"; then
+            echo >&2 "error: ${f}: The file does not exist."
+            return 1
+        fi
+        7z a "${CLIPZIP_DIR}/${name}.zip" ${pass:+ -p"${pass}" } "$(readlink -f "$f")"
+    done
+    
+    ## Open directory.
+    clipzip_open_directory
+    
+    ##
+    return 0
+}
+if test @"${SCRNAME:-$(basename "$0")}" = @"filezip"; then
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        *)            filezip "$@"; exit 0;;
+    esac
+fi
